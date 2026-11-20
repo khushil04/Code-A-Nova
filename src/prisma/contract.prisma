@@ -1,0 +1,93 @@
+// use prisma-8
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id           String             @id @onCreate(uuid())
+  email        String             @unique
+  name         String
+  passwordHash String             @map("password_hash")
+  role         Role               @default(USER)
+  createdAt    DateTime           @default(now()) @onCreate(now()) @map("created_at")
+  updatedAt    temporal.UpdatedAt @map("updated_at")
+
+  credentials   Credential[]
+  categories    Category[]
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model Credential {
+  id                String             @id @onCreate(uuid())
+  title             String
+  username          String
+  encryptedPassword String             @map("encrypted_password")
+  iv                String
+  authTag           String             @map("auth_tag")
+  url               String?
+  notes             String?
+  userId            String             @map("user_id")
+  categoryId        String?            @map("category_id")
+  createdAt         DateTime           @default(now()) @onCreate(now()) @map("created_at")
+  updatedAt         temporal.UpdatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([categoryId])
+  @@map("credentials")
+}
+
+model Category {
+  id          String             @id @onCreate(uuid())
+  name        String
+  description String?
+  userId      String             @map("user_id")
+  createdAt   DateTime           @default(now()) @onCreate(now()) @map("created_at")
+  updatedAt   temporal.UpdatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentials Credential[]
+
+  @@unique([name, userId])
+  @@index([userId])
+  @@map("categories")
+}
+
+model AuditLog {
+  id        String   @id @onCreate(uuid())
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  details   Json?
+  ipAddress String?  @map("ip_address")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @onCreate(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model RefreshToken {
+  id        String   @id @onCreate(uuid())
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  revoked   Boolean  @default(false)
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @onCreate(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
